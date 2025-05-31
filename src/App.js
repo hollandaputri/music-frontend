@@ -46,7 +46,7 @@ function App() {
   const [songOptions, setSongOptions] = useState([]);
 
   useEffect(() => {
-    fetch("http://localhost:5000/lagu")
+    fetch(`${process.env.REACT_APP_API_URL}/lagu`)
       .then((res) => res.json())
       .then((data) => setSongOptions(data))
       .catch((err) => console.error("Gagal mengambil lagu:", err));
