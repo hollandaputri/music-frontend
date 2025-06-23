@@ -12,6 +12,7 @@ import {
   ThemeProvider,
   Stack,
   Autocomplete,
+  createFilterOptions,
 } from "@mui/material";
 import MusicNoteIcon from "@mui/icons-material/MusicNote";
 import GraphicEqIcon from "@mui/icons-material/GraphicEq";
@@ -19,50 +20,41 @@ import GraphicEqIcon from "@mui/icons-material/GraphicEq";
 const theme = createTheme({
   palette: {
     mode: "light",
-    primary: { main: "#1DB954" },
-    background: { default: "#f2f2f2" },
-    text: { primary: "#000", secondary: "#555" },
+    primary: {
+      main: "#1DB954",
+    },
+    background: {
+      default: "#f2f2f2",
+    },
+    text: {
+      primary: "#000",
+      secondary: "#555",
+    },
   },
   typography: {
     fontFamily: "'Inter', sans-serif",
   },
 });
 
+const filter = createFilterOptions();
+
 function App() {
-  const [formData, setFormData] = useState({
-    user_id: "",
-    judul_lagu: "",
-    artis: "",
-    genre: "",
-    top_n: 10,
-  });
+  const [formData, setFormData] = useState({ user_id: "", judul_lagu: "", artis: "", genre: "", top_n: 10 });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [results, setResults] = useState([]);
-  const [allSongs, setAllSongs] = useState([]);
-  const [artistOptions, setArtistOptions] = useState([]);
-  const [filteredSongs, setFilteredSongs] = useState([]);
-
-  const genreOptions = [
-    "clasiccal", "edm", "hiphop", "indie", "ipop",
-    "jazz", "kpop", "latin", "pop", "rnb", "rock",
-  ];
+  const [songOptions, setSongOptions] = useState([]);
 
   useEffect(() => {
-    fetch("http://localhost:5000/lagu")
+    fetch(`${process.env.REACT_APP_API_URL}/lagu`)
       .then((res) => res.json())
-      .then((data) => {
-        setAllSongs(data);
-        const uniqueArtists = [...new Set(data.map((item) => item.artist))];
-        setArtistOptions(uniqueArtists);
-      })
+      .then((data) => setSongOptions(data))
       .catch((err) => console.error("Gagal mengambil lagu:", err));
   }, []);
 
-  const handleArtistChange = (event, value) => {
-    setFormData((prev) => ({ ...prev, artis: value || "", judul_lagu: "" }));
-    const filtered = allSongs.filter((item) => item.artist === value);
-    setFilteredSongs(filtered);
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
@@ -72,7 +64,7 @@ function App() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://127.0.0.1:5000/recommend", {
+      const res = await fetch(`${process.env.REACT_APP_API_URL}/recommend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -118,35 +110,55 @@ function App() {
               label="User ID"
               name="user_id"
               value={formData.user_id}
-              onChange={(e) => setFormData({ ...formData, user_id: e.target.value })}
+              onChange={handleChange}
               fullWidth
               required
               margin="normal"
             />
 
             <Autocomplete
-              options={artistOptions}
-              value={formData.artis}
-              onChange={handleArtistChange}
-              renderInput={(params) => <TextField {...params} label="Artis" required margin="normal" />}
-            />
-
-            <Autocomplete
-              options={filteredSongs}
+              options={songOptions}
               getOptionLabel={(option) => option.title || ""}
               isOptionEqualToValue={(option, value) => option.title === value.title}
-              value={filteredSongs.find((s) => s.title === formData.judul_lagu) || null}
-              onChange={(e, value) =>
-                setFormData((prev) => ({ ...prev, judul_lagu: value ? value.title : "" }))
+              filterOptions={(options, state) =>
+                filter(options, {
+                  ...state,
+                  matchFrom: "start",
+                  stringify: (option) => (option.title || "").toLowerCase(),
+                })
               }
               renderInput={(params) => <TextField {...params} label="Judul Lagu" required margin="normal" />}
+              onChange={(e, value) => {
+                if (value) {
+                  setFormData((prev) => ({
+                    ...prev,
+                    judul_lagu: value.title,
+                    artis: value.artist,
+                  }));
+                } else {
+                  setFormData((prev) => ({ ...prev, judul_lagu: "", artis: "" }));
+                }
+              }}
             />
 
-            <Autocomplete
-              options={genreOptions}
+            <TextField
+              label="Artis"
+              name="artis"
+              value={formData.artis}
+              onChange={handleChange}
+              fullWidth
+              required
+              margin="normal"
+            />
+
+            <TextField
+              label="Genre"
+              name="genre"
               value={formData.genre}
-              onChange={(e, value) => setFormData((prev) => ({ ...prev, genre: value || "" }))}
-              renderInput={(params) => <TextField {...params} label="Genre" required margin="normal" />}
+              onChange={handleChange}
+              fullWidth
+              required
+              margin="normal"
             />
 
             <TextField
@@ -155,7 +167,7 @@ function App() {
               type="number"
               inputProps={{ min: 1, max: 20 }}
               value={formData.top_n}
-              onChange={(e) => setFormData({ ...formData, top_n: e.target.value })}
+              onChange={handleChange}
               fullWidth
               margin="normal"
             />
