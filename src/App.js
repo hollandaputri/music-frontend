@@ -13,6 +13,7 @@ import {
   Stack,
   Autocomplete,
   createFilterOptions,
+  MenuItem,
 } from "@mui/material";
 import MusicNoteIcon from "@mui/icons-material/MusicNote";
 import GraphicEqIcon from "@mui/icons-material/GraphicEq";
@@ -39,16 +40,34 @@ const theme = createTheme({
 const filter = createFilterOptions();
 
 function App() {
-  const [formData, setFormData] = useState({ user_id: "", judul_lagu: "", artis: "", genre: "", top_n: 10 });
+  const [formData, setFormData] = useState({
+    user_id: "",
+    judul_lagu: "",
+    artis: "",
+    genre: "",
+    top_n: 10,
+  });
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [results, setResults] = useState([]);
   const [songOptions, setSongOptions] = useState([]);
+  const [filteredSongs, setFilteredSongs] = useState([]);
+  const [artistOptions, setArtistOptions] = useState([]);
+
+  const genreOptions = [
+    "classical", "edm", "hiphop", "jazz", "indie", "latin",
+    "kpop", "pop", "rnb", "rock", "ipop"
+  ];
 
   useEffect(() => {
     fetch(`${process.env.REACT_APP_API_URL}/lagu`)
       .then((res) => res.json())
-      .then((data) => setSongOptions(data))
+      .then((data) => {
+        setSongOptions(data);
+        const uniqueArtists = [...new Set(data.map((song) => song.artist))];
+        setArtistOptions(uniqueArtists);
+      })
       .catch((err) => console.error("Gagal mengambil lagu:", err));
   }, []);
 
@@ -82,7 +101,7 @@ function App() {
       }
 
       const data = await res.json();
-      setResults(data.recommendations);
+      setResults(data.recommendations || data);
     } catch (err) {
       setError(err.message);
     }
@@ -104,7 +123,13 @@ function App() {
           <Box
             component="form"
             onSubmit={handleSubmit}
-            sx={{ background: "#fff", p: 4, borderRadius: 2, boxShadow: 1, mb: 4 }}
+            sx={{
+              background: "#fff",
+              p: 4,
+              borderRadius: 2,
+              boxShadow: 1,
+              mb: 4,
+            }}
           >
             <TextField
               label="User ID"
@@ -117,7 +142,19 @@ function App() {
             />
 
             <Autocomplete
-              options={songOptions}
+              options={artistOptions}
+              getOptionLabel={(option) => option}
+              renderInput={(params) => <TextField {...params} label="Artis" required margin="normal" />}
+              onChange={(e, value) => {
+                setFormData((prev) => ({ ...prev, artis: value || "", judul_lagu: "" }));
+                const filtered = songOptions.filter((song) => song.artist === value);
+                setFilteredSongs(filtered);
+              }}
+              value={formData.artis}
+            />
+
+            <Autocomplete
+              options={filteredSongs}
               getOptionLabel={(option) => option.title || ""}
               isOptionEqualToValue={(option, value) => option.title === value.title}
               filterOptions={(options, state) =>
@@ -127,31 +164,24 @@ function App() {
                   stringify: (option) => (option.title || "").toLowerCase(),
                 })
               }
-              renderInput={(params) => <TextField {...params} label="Judul Lagu" required margin="normal" />}
+              renderInput={(params) => (
+                <TextField {...params} label="Judul Lagu" required margin="normal" />
+              )}
               onChange={(e, value) => {
                 if (value) {
                   setFormData((prev) => ({
                     ...prev,
                     judul_lagu: value.title,
-                    artis: value.artist,
                   }));
                 } else {
-                  setFormData((prev) => ({ ...prev, judul_lagu: "", artis: "" }));
+                  setFormData((prev) => ({ ...prev, judul_lagu: "" }));
                 }
               }}
+              disabled={!formData.artis}
             />
 
             <TextField
-              label="Artis"
-              name="artis"
-              value={formData.artis}
-              onChange={handleChange}
-              fullWidth
-              required
-              margin="normal"
-            />
-
-            <TextField
+              select
               label="Genre"
               name="genre"
               value={formData.genre}
@@ -159,7 +189,13 @@ function App() {
               fullWidth
               required
               margin="normal"
-            />
+            >
+              {genreOptions.map((genre) => (
+                <MenuItem key={genre} value={genre}>
+                  {genre.toUpperCase()}
+                </MenuItem>
+              ))}
+            </TextField>
 
             <TextField
               label="Jumlah Rekomendasi (top_n)"
