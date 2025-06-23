@@ -49,7 +49,7 @@ function App() {
   ];
 
   useEffect(() => {
-    fetch("${process.env.REACT_APP_API_URL}/lagu")
+    fetch(`${process.env.REACT_APP_API_URL}/lagu`)
       .then((res) => res.json())
       .then((data) => {
         setAllSongs(data);
@@ -72,7 +72,7 @@ function App() {
     setLoading(true);
 
     try {
-      const res = await fetch("${process.env.REACT_APP_API_URL}/recommend", {
+      const res = await fetch(`${process.env.REACT_APP_API_URL}/recommend`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
